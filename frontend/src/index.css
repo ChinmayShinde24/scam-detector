@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --font-roboto: 'Roboto', sans-serif;
+  --font-merriweather: 'Merriweather', serif;
+}
+
+body {
+  font-family: var(--font-roboto);
+}
+
+.font-roboto {
+  font-family: var(--font-roboto);
+}
+
+.font-merriweather {
+  font-family: var(--font-merriweather);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
