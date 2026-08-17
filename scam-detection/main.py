@@ -53,13 +53,18 @@ class ErrorResponse(BaseModel):
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint for monitoring and load balancers."""
+    from config import GEMINI_API_KEY
+    api_key_status = "loaded" if GEMINI_API_KEY else "not_loaded"
+    
+    logger.info(f"Health check called - API key status: {api_key_status}")
+    
     return HealthResponse(
         status="ok",
         service="scam-detection",
         model="gemini-3.6-flash"
     )
 
-@app.post("/detect", response_model=DetectionResponse)
+@app.post("/detect")
 async def detect_scam(request: DetectionRequest) -> Dict[str, Any]:
     """
     Detect scam content in a message.
@@ -68,20 +73,33 @@ async def detect_scam(request: DetectionRequest) -> Dict[str, Any]:
         request: DetectionRequest containing the message to analyze
         
     Returns:
-        DetectionResponse with scam analysis results
+        Dict with success status and detection data
         
     Raises:
         HTTPException: For validation errors or processing failures
     """
     import time
+    import traceback
     
     try:
         logger.info(f"Received detection request for message length: {len(request.message)}")
+        logger.info(f"Message preview: {request.message[:50]}...")
+        
+        # Check if API key is loaded
+        from config import GEMINI_API_KEY
+        if not GEMINI_API_KEY:
+            logger.error("GEMINI_API_KEY is not set in environment variables")
+            return {
+                "success": False,
+                "error": "API key not configured"
+            }
+        logger.info(f"API key loaded successfully (length: {len(GEMINI_API_KEY)})")
         
         # Measure processing time
         start_time = time.time()
         
         # Run detection using existing ScamDetector
+        logger.info("Starting scam detection pipeline...")
         result = detector.detect(request.message)
         
         processing_time = time.time() - start_time
@@ -92,21 +110,28 @@ async def detect_scam(request: DetectionRequest) -> Dict[str, Any]:
         result['strategy'] = 'react'
         
         logger.info(f"Detection completed: {result.get('label', 'Unknown')}")
+        logger.info(f"Processing time: {processing_time:.2f}s")
         
-        return result
+        # Return in format expected by Node.js backend
+        return {
+            "success": True,
+            "data": result
+        }
         
     except ValueError as e:
         logger.warning(f"Validation error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(e)
-        )
+        logger.warning(f"Traceback: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
     except Exception as e:
         logger.error(f"Detection pipeline failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Scam detection processing failed"
-        )
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 # Optional: Keep CLI functionality for local testing
 def main():
