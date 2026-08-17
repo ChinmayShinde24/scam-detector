@@ -3,13 +3,15 @@ import User from '../models/users.model.js';
 import mongoose from 'mongoose';
 
 // Python service URL (will be configured via environment)
-const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8001';
 
 // Detect scam in a message
 export const detectScam = async (req, res) => {
   try {
     const { message } = req.body;
     const userId = req.user?.id; // Will come from auth middleware
+
+    console.log(`[BACKEND] Calling Python service at: ${PYTHON_SERVICE_URL}/detect`);
 
     if (!message || !message.trim()) {
       return res.status(400).json({
